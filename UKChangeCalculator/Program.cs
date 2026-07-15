@@ -66,7 +66,7 @@ namespace ChangeCalculator
             while (true)
             {
                 Console.Write(message);
-                string input = Console.ReadLine();
+                string? input = Console.ReadLine();
                 input = input?.Replace("£", "").Trim();
 
                 if (decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out result) && result >= 0)
