@@ -2,5 +2,6 @@
   <Folder Name="/Solution Items/">
     <File Path="README.md" />
   </Folder>
+  <Project Path="UKChangeCalculator.Tests/UKChangeCalculator.Tests.csproj" Id="6cda2d7a-121a-4388-a81c-b2b36915bd27" />
   <Project Path="UKChangeCalculator/UKChangeCalculator.csproj" />
 </Solution>

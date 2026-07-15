@@ -4,10 +4,11 @@ using System.Globalization;
 
 namespace ChangeCalculator
 {
-    class Program
+    public class Program
     {
-        // Defined standard UK sterling denominations in pence to avoid floating-point inaccuracies
-        private static readonly List<(string Name, int ValueInPence)> Denominations = new()
+        // Made public so the test project can access the standard UK sterling denominations
+        public static readonly List<(string Name, int ValueInPence)> Denominations = new()
+
 {
 ("£20", 2000),
 ("£10", 1000),
@@ -22,7 +23,7 @@ namespace ChangeCalculator
 ("1p", 1)
 };
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("=== UK Currency Change Calculator ===");
@@ -52,7 +53,11 @@ namespace ChangeCalculator
             }
 
             Console.WriteLine("Your change is:");
-            CalculateAndDisplayChange(changeRequired);
+            var changeResult = CalculateChange(changeRequired);
+            foreach (var item in changeResult)
+            {
+                Console.WriteLine($"{item.Count} x {item.DenominationName}");
+            }
         }
 
         private static decimal PromptForDecimal(string message)
@@ -62,8 +67,6 @@ namespace ChangeCalculator
             {
                 Console.Write(message);
                 string input = Console.ReadLine();
-
-                // Strips out £ sign if the user accidentally includes it
                 input = input?.Replace("£", "").Trim();
 
                 if (decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out result) && result >= 0)
@@ -77,8 +80,11 @@ namespace ChangeCalculator
             }
         }
 
-        private static void CalculateAndDisplayChange(int changeInPence)
+        // Extracted logic to a public, pure logical method that is easily unit-testable
+        public static List<(int Count, string DenominationName)> CalculateChange(int changeInPence)
         {
+            var results = new List<(int Count, string DenominationName)>();
+
             foreach (var denomination in Denominations)
             {
                 if (changeInPence >= denomination.ValueInPence)
@@ -86,12 +92,13 @@ namespace ChangeCalculator
                     int count = changeInPence / denomination.ValueInPence;
                     changeInPence %= denomination.ValueInPence;
 
-                    Console.WriteLine($"{count} x {denomination.Name}");
+                    results.Add((count, denomination.Name));
                 }
 
                 if (changeInPence == 0) break;
             }
+
+            return results;
         }
     }
 }
-
