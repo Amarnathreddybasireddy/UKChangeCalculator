@@ -1,22 +1,29 @@
 ﻿using Xunit;
-using ChangeCalculator;
+using System;
 using System.Collections.Generic;
+using ChangeCalculator.Services;
+using ChangeCalculator.Models;
 
 namespace UKChangeCalculator.Tests
 {
     public class ChangeCalculatorTests
     {
+        private readonly IChangeCalculatorService _service;
+
+        public ChangeCalculatorTests()
+        {
+            // Instantiating the refactored service layer
+            _service = new UkChangeCalculatorService();
+        }
+
         #region Core Functionality & Standard Scenarios
 
         [Fact]
         public void CalculateChange_WithStandardScenario_ReturnsCorrectDenominations()
         {
-            // Scenario: £20 paid for a £5.50 product. Change required is £14.50 (1450 pence).
-            // Arrange
-            int changeInPence = 1450;
-
+            // Scenario: £20 paid for a £5.50 product. Change required is £14.50.
             // Act
-            var result = Program.CalculateChange(changeInPence);
+            var result = _service.CalculateChange(20.00m, 5.50m);
 
             // Assert
             Assert.Collection(result,
@@ -29,12 +36,9 @@ namespace UKChangeCalculator.Tests
         [Fact]
         public void CalculateChange_WithNoChangeRequired_ReturnsEmptyList()
         {
-            // Scenario: Exact payment made. Change required is 0 pence.
-            // Arrange
-            int changeInPence = 0;
-
+            // Scenario: Exact payment made.
             // Act
-            var result = Program.CalculateChange(changeInPence);
+            var result = _service.CalculateChange(10.00m, 10.00m);
 
             // Assert
             Assert.Empty(result);
@@ -47,12 +51,9 @@ namespace UKChangeCalculator.Tests
         [Fact]
         public void CalculateChange_WithSmallestDenominations_ReturnsCorrectBreakdown()
         {
-            // Scenario: Change required is 3 pence (3p). Tests correct degradation to minimum currency units.
-            // Arrange
-            int changeInPence = 3;
-
+            // Scenario: Change required is £0.03 (3p).
             // Act
-            var result = Program.CalculateChange(changeInPence);
+            var result = _service.CalculateChange(10.03m, 10.00m);
 
             // Assert
             Assert.Collection(result,
@@ -64,12 +65,9 @@ namespace UKChangeCalculator.Tests
         [Fact]
         public void CalculateChange_WithLargeComplexAmount_ReturnsAccurateBreakdown()
         {
-            // Scenario: High change value (£88.88 -> 8888 pence) requiring multiple units across almost all denominations.
-            // Arrange
-            int changeInPence = 8888;
-
+            // Scenario: High change value (£88.88) requiring multiple units across almost all denominations.
             // Act
-            var result = Program.CalculateChange(changeInPence);
+            var result = _service.CalculateChange(100.00m, 11.12m);
 
             // Assert
             Assert.Collection(result,
@@ -87,17 +85,12 @@ namespace UKChangeCalculator.Tests
         }
 
         [Fact]
-        public void CalculateChange_WithNegativePence_ReturnsEmptyListSafely()
+        public void CalculateChange_WithPriceGreaterThanGivenAmount_ThrowsArgumentException()
         {
-            // Scenario: Guarding against downstream mathematical errors resulting in negative values.
-            // Arrange
-            int changeInPence = -100;
-
-            // Act
-            var result = Program.CalculateChange(changeInPence);
-
-            // Assert
-            Assert.Empty(result);
+            // Scenario: Guarding against downstream mathematical errors when customer doesn't offer enough cash.
+            // Act & Assert
+            var exception = Assert.Throws<ArgumentException>(() => _service.CalculateChange(5.00m, 10.00m));
+            Assert.Equal("The product price cannot be greater than the money given.", exception.Message);
         }
 
         #endregion
@@ -105,21 +98,21 @@ namespace UKChangeCalculator.Tests
         #region Data-Driven Tests (Theory)
 
         [Theory]
-        [InlineData(2000, "£20", 1)]
-        [InlineData(1000, "£10", 1)]
-        [InlineData(500, "£5", 1)]
-        [InlineData(200, "£2", 1)]
-        [InlineData(100, "£1", 1)]
-        [InlineData(50, "50p", 1)]
-        [InlineData(20, "20p", 1)]
-        [InlineData(10, "10p", 1)]
-        [InlineData(5, "5p", 1)]
-        [InlineData(2, "2p", 1)]
-        [InlineData(1, "1p", 1)]
-        public void CalculateChange_WithSingleExactNoteOrCoin_ReturnsOneItem(int changeInPence, string expectedName, int expectedCount)
+        [InlineData(20.00, 0.00, "£20", 1)]
+        [InlineData(10.00, 0.00, "£10", 1)]
+        [InlineData(5.00, 0.00, "£5", 1)]
+        [InlineData(2.00, 0.00, "£2", 1)]
+        [InlineData(1.00, 0.00, "£1", 1)]
+        [InlineData(0.50, 0.00, "50p", 1)]
+        [InlineData(0.20, 0.00, "20p", 1)]
+        [InlineData(0.10, 0.00, "10p", 1)]
+        [InlineData(0.05, 0.00, "5p", 1)]
+        [InlineData(0.02, 0.00, "2p", 1)]
+        [InlineData(0.01, 0.00, "1p", 1)]
+        public void CalculateChange_WithSingleExactNoteOrCoin_ReturnsOneItem(decimal paid, decimal price, string expectedName, int expectedCount)
         {
             // Act
-            var result = Program.CalculateChange(changeInPence);
+            var result = _service.CalculateChange(paid, price);
 
             // Assert
             Assert.Single(result);
@@ -128,14 +121,13 @@ namespace UKChangeCalculator.Tests
         }
 
         [Theory]
-        [InlineData(4000, "£20", 2)]
-        [InlineData(3000, "£20", 1)] // Followed by £10 in the subsequent logic assertion
-        [InlineData(4, "2p", 2)]
-        public void CalculateChange_WithMultiplesOfSameDenomination_CalculatesCorrectCount(int changeInPence, string expectedName, int expectedCount)
+        [InlineData(40.00, 0.00, "£20", 2)]
+        [InlineData(30.00, 0.00, "£20", 1)]
+        [InlineData(0.04, 0.00, "2p", 2)]
+        public void CalculateChange_WithMultiplesOfSameDenomination_CalculatesCorrectCount(decimal paid, decimal price, string expectedName, int expectedCount)
         {
             // Act
-            var result = Program.CalculateChange(changeInPence);
-
+            var result = _service.CalculateChange(paid, price);
             // Assert
             Assert.NotEmpty(result);
             Assert.Equal(expectedCount, result[0].Count);
