@@ -16,3 +16,4 @@ A lightweight, robust .NET 10 console application designed to calculate and brea
 1. Open your terminal or command prompt.
 2. Navigate to the project folder: cd UKChangeCalculator
 3. Run the application using the following command: dotnet run
+

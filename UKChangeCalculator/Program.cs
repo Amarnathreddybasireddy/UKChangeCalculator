@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using ChangeCalculator.Services;
 
 namespace ChangeCalculator
@@ -9,18 +10,45 @@ namespace ChangeCalculator
         static void Main(string[] args)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            // 1. Setup DI Container infrastructure
+            var serviceProvider = new ServiceCollection()
+            .AddSingleton<IChangeCalculatorService, UkChangeCalculatorService>()
+            .BuildServiceProvider();
+
+            // 2. Resolve service via abstraction container instead of 'new' keyword
+            var calculatorService = serviceProvider.GetRequiredService<IChangeCalculatorService>();
+
+            // 3. Instantiate presentation manager instance using injection runtime
+            var app = new ApplicationEngine(calculatorService);
+            app.Run();
+        }
+    }
+
+    /// <summary>
+    /// Encapsulates application runtime flow utilizing Constructor Injection
+    /// </summary>
+    public class ApplicationEngine
+    {
+        private readonly IChangeCalculatorService _calculatorService;
+
+        // The dependency is loosely coupled and cleanly injected here
+        public ApplicationEngine(IChangeCalculatorService calculatorService)
+        {
+            _calculatorService = calculatorService ?? throw new ArgumentNullException(nameof(calculatorService));
+        }
+
+        public void Run()
+        {
             Console.WriteLine("=== UK Currency Change Calculator ===");
             Console.WriteLine("-------------------------------------");
 
-            decimal totalAmount = PromptForDecimal("Enter the total customer money given (e.g., 20 or 20.00): £");
-            decimal productPrice = PromptForDecimal("Enter the product price (e.g., 5.50): £");
-
-            // Instantiating the service layer (Separation of Concerns)
-            IChangeCalculatorService calculator = new UkChangeCalculatorService();
+            decimal totalAmount = PromptForDecimal("Enter the total customer money given: £");
+            decimal productPrice = PromptForDecimal("Enter the product price: £");
 
             try
             {
-                var changeResult = calculator.CalculateChange(totalAmount, productPrice);
+                var changeResult = _calculatorService.CalculateChange(totalAmount, productPrice);
 
                 Console.WriteLine("\n-------------------------------------");
                 if (changeResult.Count == 0)
@@ -52,7 +80,6 @@ namespace ChangeCalculator
                 input = input?.Replace("£", "").Trim();
 
                 if (decimal.TryParse(input, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal result) && result >= 0)
-
                 {
                     return result;
                 }
